@@ -2,7 +2,7 @@
 
 This repository contains a work which is inspired by the paper "Simple random search provides a competitive approach to reinforcement learning" (https://arxiv.org/abs/1803.07055) where they developed a competitive alternative to the gradient-based methods for training deep neural policies in reinforcement-learning (RL).
 
-Such randomized approaches are often able to avoid local minima(s) and better approximate the global minima especially when the resources are not limited (whilst they have been even able to find optimial policies significantly faster than the state-of-the-art methods in RL).
+Such randomized approaches are often able to avoid local minima(s) and better approximate the global minima especially when the resources are not limited (whilst authors have been even able to find optimial policies significantly faster than the state-of-the-art methods in RL using Augmented Random Search).
 
 random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods.
 
