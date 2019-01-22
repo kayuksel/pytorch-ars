@@ -28,8 +28,6 @@ with torch.no_grad():
         progress_bar = tq(train_loader)
         progress_bar.set_description("Training %i" % epoch)
 
-        noises = []
-
         for i, (batch_features, batch_targets) in enumerate(progress_bar):
 
             if (selected_batches[i] == 0): continue
@@ -51,6 +49,8 @@ with torch.no_grad():
 
             add_loss = calculate_loss(model, features, targets)
 
+            #model.load_state_dict(checkpoint)
+
             torch.manual_seed(rseed)
             torch.cuda.manual_seed(rseed)
 
@@ -60,6 +60,8 @@ with torch.no_grad():
                 param.sub_(noise.cuda() * 2.0)
 
             sub_loss = calculate_loss(model, features, targets)
+
+            #model.load_state_dict(checkpoint)
 
             torch.manual_seed(rseed)
             torch.cuda.manual_seed(rseed)
@@ -73,17 +75,25 @@ with torch.no_grad():
                 else:
                     potential = bw[i] / add_loss.item()
 
-                # if sub_loss is higher than add noise, vica versa
+                # In case of usage of ARS for post-training
+                # we can maybe instead have multiplications
+                # noise = (torch.randn(param.size()) * lr_rate * (sub_loss - add_loss)) + 1.0
+
                 param.add_(noise.cuda() * (1.0 + (sub_loss - add_loss) * potential))
 
             loss = calculate_loss(model, features, targets)
 
             if bw[i] < loss:
-                accept_prob = torch.exp(-1.0 * (loss - bw[i]) / loss)
+                accept_prob = torch.exp((bw[i] - loss) / loss)
+                # attempt for increasing the acceptance difficulty over epochs
+                # accept_prob = torch.exp((bw[i] - loss) / (loss * math.sqrt(epoch + 1)))
 
-                if random.random() > accept_prob: 
+                if random.random() < accept_prob: 
                     model.load_state_dict(checkpoint)
                     loss = bw[i]
+                else:
+                    print('accepted worsening %f' % accept_prob)
+
             bw[i] = loss
 
             tsum_loss = tsum_loss + loss.item()
