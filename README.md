@@ -1,5 +1,4 @@
 # pytorch-ars
-PyTorch Implementation of Augmented Random Search, etc.
 
 This repository contains a work which is inspired by the paper "Simple random search provides a competitive approach to reinforcement learning" (https://arxiv.org/abs/1803.07055) where they developed a competitive alternative to the gradient-based methods for training deep neural policies in reinforcement-learning (RL).
 
