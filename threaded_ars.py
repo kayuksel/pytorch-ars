@@ -170,10 +170,10 @@ class RandomSearcher(threading.Thread):
 
                 if self.prev[i] < loss:
                     # accept the worsening move with e.g. 5% probability
-                    accept_prob = torch.exp(-1.0 * (loss - self.prev[i]) / loss)
+                    accept_prob = torch.exp((self.prev[i] - loss) / loss)
 
                     # with 95% probability revert back to the checkpoint
-                    if random.random() > accept_prob: 
+                    if random.random() < accept_prob: 
                         self.model.load_state_dict(self.checkpoint)
                         loss = self.prev[i]
 
