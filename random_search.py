@@ -1,4 +1,5 @@
 from past.builtins import execfile
+from copy import deepcopy
 
 batch_size = 512
 epochs = 200
@@ -78,12 +79,16 @@ with torch.no_grad():
             loss = calculate_loss(model, features, targets)
 
             if bw[i] < loss:
-                model.load_state_dict(checkpoint)
-                loss = bw[i]
-            else:
-                bw[i] = loss
+                accept_prob = torch.exp(-1.0 * (loss - bw[i]) / loss)
+
+                if random.random() > accept_prob: 
+                    model.load_state_dict(checkpoint)
+                    loss = bw[i]
+            bw[i] = loss
 
             tsum_loss = tsum_loss + loss.item()
+
+            progress_bar.set_postfix({'Loss': '{:.3f}'.format(np.mean(bw))})
 
             torch.cuda.empty_cache()
 
@@ -103,7 +108,6 @@ with torch.no_grad():
             targets = batch_targets.float().view(len(batch_targets), -1).cuda()
             loss = calculate_loss(model, features, targets)
             tsum_loss = tsum_loss + loss.item()
+            progress_bar.set_postfix({'Loss': '{:.3f}'.format(tsum_loss / (i+1))})
             torch.cuda.empty_cache()
-
         print(tsum_loss / (i+1))
-
