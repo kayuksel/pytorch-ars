@@ -31,7 +31,6 @@ class RandomSearcher(threading.Thread):
         self.model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
 
         self.checkpoint = deepcopy(self.model.state_dict())
-        self.bestparam = None
 
         self.prev = np.ones(len(train_loader))
 
@@ -97,6 +96,8 @@ class RandomSearcher(threading.Thread):
 
     def _train_iter(self):
 
+        global best_model
+
         with torch.no_grad():
 
             selected_batches = np.random.multinomial(int(len(train_loader)*0.5), self.prev/np.sum(self.prev))
@@ -147,11 +148,15 @@ class RandomSearcher(threading.Thread):
                 #torch.manual_seed(rseed)
                 #torch.cuda.manual_seed(rseed)
 
+                #for param, best in zip(self.model.parameters(), best_model):
                 for param in self.model.parameters():
                     #if not param.requires_grad: continue
                     #noise = torch.randn(param.size()) * lr_rate
                     noise = rstate.randn(*param.size()) * lr_rate
                     noise = torch.from_numpy(noise).float().cuda(self.cid)
+
+                    #explore = (param - best.cuda(self.cid))
+                    #explore /= explore.max() * lr_rate
 
                     if sub_loss < add_loss:
                         potential = self.prev[i] / sub_loss.item()
@@ -164,10 +169,15 @@ class RandomSearcher(threading.Thread):
                 loss = calculate_loss(self.model, features, targets)
 
                 if self.prev[i] < loss:
-                    self.model.load_state_dict(self.checkpoint)
-                    loss = self.prev[i]
-                else:
-                    self.prev[i] = loss
+                    # accept the worsening move with e.g. 5% probability
+                    accept_prob = torch.exp(-1.0 * (loss - self.prev[i]) / loss)
+
+                    # with 95% probability revert back to the checkpoint
+                    if random.random() > accept_prob: 
+                        self.model.load_state_dict(self.checkpoint)
+                        loss = self.prev[i]
+
+                self.prev[i] = loss
 
                 tsum_loss = tsum_loss + loss.item()
 
@@ -178,14 +188,13 @@ class RandomSearcher(threading.Thread):
 
             iter_size = float(np.count_nonzero(selected_batches))
 
+
             self.train_loss = tsum_loss / iter_size
             #print(self.train_loss)
 
     def _final_train(self):
 
         with torch.no_grad():
-
-            tsum_loss = 0.0
 
             self.model.eval()
 
@@ -197,13 +206,11 @@ class RandomSearcher(threading.Thread):
 
                 self.prev[i] = loss
 
-                tsum_loss = tsum_loss + loss.item()
-
                 #self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
 
             torch.cuda.empty_cache()
 
-            self.train_loss = tsum_loss / (i+1)
+            self.train_loss = np.mean(self.prev)
             #print(self.train_loss)
 
     def _valid(self):
@@ -222,7 +229,7 @@ class RandomSearcher(threading.Thread):
                 loss = calculate_loss(self.model, features, targets)
                 tsum_loss = tsum_loss + loss.item()
 
-                #self.train_pb.set_postfix({'Loss': '{:.3f}'.format(tsum_loss/(i+1))})
+                self.train_pb.set_postfix({'Loss': '{:.3f}'.format(tsum_loss/(i+1))})
 
             torch.cuda.empty_cache()
 
