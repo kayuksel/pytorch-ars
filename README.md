@@ -22,5 +22,5 @@ Currently, only solutions improving the loss of a mini-batch are accepted in the
 
 Also, the initial experiments are being done in a supervised-learning setting rather than RL.
 
-Please, check the following repository if you are looking for an implementation of the original technique in PyTorch:
+Please, check the following repository if you are looking for an implementation of the original ARS method in PyTorch:
 https://github.com/alexis-jacq/Pytorch_Policy_Search_Optimizer
