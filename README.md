@@ -5,7 +5,7 @@ This repository contains a work which is inspired by the paper "Simple random se
 
 Such randomized approaches are often able to avoid local minima(s) and better approximate the global minima especially when the resources are not limited (whilst they have been even able to find optimial policies significantly faster than the state-of-the-art methods in RL).
 
-random_search.py contains a simplified version the algorithm that is presented in the paper. The reason for the simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods.
+random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods.
 
 threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 32 models in-parallel with 4 x RTX 2070. However, there are speed issues.
 
