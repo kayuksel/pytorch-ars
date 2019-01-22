@@ -171,7 +171,7 @@ class RandomSearcher(threading.Thread):
 
                 tsum_loss = tsum_loss + loss.item()
 
-                #self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
+                self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
 
 
             torch.cuda.empty_cache()
@@ -222,7 +222,7 @@ class RandomSearcher(threading.Thread):
                 loss = calculate_loss(self.model, features, targets)
                 tsum_loss = tsum_loss + loss.item()
 
-                self.train_pb.set_postfix({'Loss': '{:.3f}'.format(tsum_loss/(i+1))})
+                #self.train_pb.set_postfix({'Loss': '{:.3f}'.format(tsum_loss/(i+1))})
 
             torch.cuda.empty_cache()
 
