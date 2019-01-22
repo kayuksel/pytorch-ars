@@ -9,7 +9,7 @@ random_search.py contains a simplified version the algorithm that is presented i
 
 threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 32 models in-parallel with 4 x RTX 2070. However, there are speed issues.
 
-My idea is integrating a genetic algorithm on top of the parallelized model training. An early version of this where 25% of the population is killed in each epoch is already implemented.
+My objective is integrating a genetic algorithm on top of the parallelized model training. An early version of this where 25% of the population is killed in each epoch is already implemented.
 
 Clones of the so far best model are being trained instead of the members of the population that have been terminated in each epoch. The source of inspirations for the genetic part of this are:
 
