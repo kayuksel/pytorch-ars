@@ -11,7 +11,7 @@ threaded_ars.py contains a multi-threaded implementation where the models are tr
 
 My idea is integrating a genetic algorithm on top of the parallelized model training. An early version of this where 25% of the population is killed in each epoch is already implemented.
 
-Clones of the so far best model are being trained instead of the members of the population that have been killed in each epoch. The source of inspirations for the genetic part of this are:
+Clones of the so far best model are being trained instead of the members of the population that have been terminated in each epoch. The source of inspirations for the genetic part of this are:
 
 - Tabu Search (https://en.wikipedia.org/wiki/Tabu_search)
 - Simulated Annealing (https://en.wikipedia.org/wiki/Simulated_annealing)
