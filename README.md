@@ -23,7 +23,9 @@ Similar to Simulated Annealing, solutions improving the loss of a mini-batch are
 - Particle Swarm Optimization (https://en.wikipedia.org/wiki/Particle_swarm_optimization)
 
 
-Also, the initial experiments are being done in a supervised-learning setting rather than RL.
+Also, the initial experiments are being done in a supervised-learning setting rather than RL. There is also an importance sampling mechanism available for selecting batches at each epoch similar to:
+
+- Prioritized Experience Replay (https://arxiv.org/abs/1511.05952)
 
 Please, check the following repository if you are looking for an implementation of the original ARS method in PyTorch:
 https://github.com/alexis-jacq/Pytorch_Policy_Search_Optimizer
