@@ -8,7 +8,7 @@ lock = Lock()
 
 batch_size = 256
 epochs = 100
-lr_rate = 1e-3
+lr_rate = 1e-2
 
 no_cpus = 4
 
@@ -29,6 +29,8 @@ class RandomSearcher(threading.Thread):
         self.cid = thread_id % no_cpus
 
         self.model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
+
+        self.backup = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
 
         self.checkpoint = deepcopy(self.model.state_dict())
 
@@ -55,42 +57,55 @@ class RandomSearcher(threading.Thread):
 
             self.curr_epoch = epoch
 
-            self.train_pb = tq(self.t_loader)
+            self.train_pb = tq(self.t_loader, position=self.thread_id)
             self.train_pb.set_description("%i Training %i" % (self.thread_id, self.curr_epoch))
-
             self._train_iter()
-            #self.train_pb.close()
-
-            #self.train_pb = tq(self.t_loader)
-            #self.train_pb.set_description("%i Analysis %i" % (self.thread_id, self.curr_epoch))
-
+            self.train_pb.close()
+            
+            
+            self.train_pb = tq(self.t_loader, position=self.thread_id)
+            self.train_pb.set_description("%i Analysis %i" % (self.thread_id, self.curr_epoch))
             self._final_train()
-            #self.train_pb.close()
+            self.train_pb.close()
         
             lock.acquire()
 
             curr_scores[self.thread_id] = self.train_loss
 
-            print(curr_scores)
-            print(np.mean(curr_scores))
+            #print(curr_scores)
+            #print(np.mean(curr_scores))
 
             if self.train_loss < best_loss:
                 best_model = deepcopy(self.model.state_dict())
                 best_loss = self.train_loss
                 best_prev = self.prev
-                print('========== %i ===========' % self.thread_id)
-                print('best loss %f' % best_loss)
-                '''
-                self.train_pb = tq(self.v_loader)
+                #print('========== %i ===========' % self.thread_id)
+                #print('best loss %f' % best_loss)
+                
+                
+                self.train_pb = tq(self.v_loader, position=self.thread_id)
                 self.train_pb.set_description("%i Test/Valid %i" % (self.thread_id, self.curr_epoch))
                 self._valid()
                 self.train_pb.close()
-                '''
+                
             elif self.train_loss > np.percentile(curr_scores, 50):
+                # Code for breeding with the best model instead of just cloning it
+                '''
+                tau = best_loss / (best_loss + self.train_loss)
+                
+                if best_model is not None: self.backup.load_state_dict(best_model)
+
+                for model_param, target_param in zip(self.model.parameters(), self.backup.parameters()):
+                    model_param.data.copy_(tau * model_param.data + (1 - tau) * target_param.data)
+                self.train_loss = 2.0
+                '''
+
+                # Code for cloning from the best model if the solution is not good
                 self.model.load_state_dict(best_model)
                 self.train_loss = best_loss
+
                 self.prev = best_prev
-                print('killed %i' % self.thread_id)
+                #print('killed %i' % self.thread_id)
 
             lock.release()
 
@@ -115,56 +130,38 @@ class RandomSearcher(threading.Thread):
                 targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
 
                 self.checkpoint = deepcopy(self.model.state_dict())
+                if best_model is not None: self.backup.load_state_dict(best_model) 
 
-                rseed = random.randint(0, 4294967295)
+                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                    # calculate difference vector to move away
+                    diff = model_param.data - noise_param.data
+                    if (diff**2).sum() != 0.0: diff /= diff.norm()
 
-                rstate = np.random.RandomState(rseed)
-                #torch.manual_seed(rseed)
-                #torch.cuda.manual_seed(rseed)
+                    noise = torch.randn(model_param.size()).cuda(self.cid)
 
-                for param in self.model.parameters():
-                    #if not param.requires_grad: continue
-                    #noise = torch.randn(param.size()) * lr_rate
-                    noise = rstate.randn(*param.size()) * lr_rate
-                    noise = torch.from_numpy(noise).float()
-                    param.add_(noise.cuda(self.cid))
+                    # randomly move away from the best model
+                    if best_model is not None:
+                        noise *= ((noise.sign() * diff.sign()) > 0.0)
+                    noise /= noise.norm()
+
+                    velo = lr_rate * noise
+                    #velo = (lr_rate * (noise + diff * 0.2))
+
+                    noise_param.data.copy_(velo)
+
+                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                    model_param.add_(noise_param.data)
 
                 add_loss = calculate_loss(self.model, features, targets)
 
-                rstate = np.random.RandomState(rseed)
-                #torch.manual_seed(rseed)
-                #torch.cuda.manual_seed(rseed)
 
-                for param in self.model.parameters():
-                    #if not param.requires_grad: continue
-                    #noise = torch.randn(param.size()) * lr_rate
-                    noise = rstate.randn(*param.size()) * lr_rate
-                    noise = torch.from_numpy(noise).float()
-                    param.sub_(noise.cuda(self.cid) * 2.0)
-
+                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                    model_param.sub_(noise_param.data * 2.0)
+                
                 sub_loss = calculate_loss(self.model, features, targets)
 
-                rstate = np.random.RandomState(rseed)
-                #torch.manual_seed(rseed)
-                #torch.cuda.manual_seed(rseed)
-
-                #for param, best in zip(self.model.parameters(), best_model):
-                for param in self.model.parameters():
-                    #if not param.requires_grad: continue
-                    #noise = torch.randn(param.size()) * lr_rate
-                    noise = rstate.randn(*param.size()) * lr_rate
-                    noise = torch.from_numpy(noise).float().cuda(self.cid)
-
-                    #explore = (param - best.cuda(self.cid))
-                    #explore /= explore.max() * lr_rate
-
-                    if sub_loss < add_loss:
-                        potential = self.prev[i] / sub_loss.item()
-                    else:
-                        potential = self.prev[i] / add_loss.item()
-
-                    # if sub_loss is higher than add noise, vica versa
-                    param.add_(noise * (1.0 + (sub_loss - add_loss) * potential))
+                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                    model_param.add_(noise_param.data * (1.0 + sub_loss - add_loss))
 
                 loss = calculate_loss(self.model, features, targets)
 
@@ -183,11 +180,9 @@ class RandomSearcher(threading.Thread):
 
                 self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
 
-
             torch.cuda.empty_cache()
 
             iter_size = float(np.count_nonzero(selected_batches))
-
 
             self.train_loss = tsum_loss / iter_size
             #print(self.train_loss)
@@ -198,7 +193,7 @@ class RandomSearcher(threading.Thread):
 
             self.model.eval()
 
-            for i, (batch_features, batch_targets) in enumerate(self.t_loader):
+            for i, (batch_features, batch_targets) in enumerate(self.train_pb):
 
                 features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
                 targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
@@ -206,7 +201,7 @@ class RandomSearcher(threading.Thread):
 
                 self.prev[i] = loss
 
-                #self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
+                self.train_pb.set_postfix({'Loss': '{:.3f}'.format(np.mean(self.prev))})
 
             torch.cuda.empty_cache()
 
@@ -221,7 +216,7 @@ class RandomSearcher(threading.Thread):
 
             tsum_loss = 0.0
 
-            for i, (batch_features, batch_targets) in enumerate(self.v_loader):
+            for i, (batch_features, batch_targets) in enumerate(self.train_pb):
 
                 features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
                 targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
