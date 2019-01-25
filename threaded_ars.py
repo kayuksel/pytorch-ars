@@ -67,13 +67,15 @@ class RandomSearcher(threading.Thread):
             self.train_pb.set_description("%i Analysis %i" % (self.thread_id, self.curr_epoch))
             self._final_train()
             self.train_pb.close()
-        
-            lock.acquire()
+
+            BestOne = False
 
             curr_scores[self.thread_id] = self.train_loss
-
+        
             #print(curr_scores)
             #print(np.mean(curr_scores))
+
+            lock.acquire()
 
             if self.train_loss < best_loss:
                 best_model = deepcopy(self.model.state_dict())
@@ -81,12 +83,8 @@ class RandomSearcher(threading.Thread):
                 best_prev = self.prev
                 #print('========== %i ===========' % self.thread_id)
                 #print('best loss %f' % best_loss)
-                
-                
-                self.train_pb = tq(self.v_loader, position=self.thread_id)
-                self.train_pb.set_description("%i Test/Valid %i" % (self.thread_id, self.curr_epoch))
-                self._valid()
-                self.train_pb.close()
+
+                BestOne = True
                 
             elif self.train_loss > np.percentile(curr_scores, 50):
                 # Code for breeding with the best model instead of just cloning it
@@ -109,6 +107,12 @@ class RandomSearcher(threading.Thread):
 
             lock.release()
 
+            if BestOne:
+                self.train_pb = tq(self.v_loader, position=self.thread_id)
+                self.train_pb.set_description("%i Test/Valid %i" % (self.thread_id, self.curr_epoch))
+                self._valid()
+                self.train_pb.close()
+
     def _train_iter(self):
 
         global best_model
@@ -124,7 +128,7 @@ class RandomSearcher(threading.Thread):
 
             for i, (batch_features, batch_targets) in enumerate(self.train_pb):
 
-                if (selected_batches[i] == 0): continue
+                #if (selected_batches[i] == 0): continue
 
                 features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
                 targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
@@ -135,14 +139,15 @@ class RandomSearcher(threading.Thread):
                 for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
                     # calculate difference vector to move away
                     diff = model_param.data - noise_param.data
-                    if (diff**2).sum() != 0.0: diff /= diff.norm()
+                    #if (diff**2).sum() != 0.0: diff /= diff.norm()
 
                     noise = torch.randn(model_param.size()).cuda(self.cid)
 
                     # randomly move away from the best model
                     if best_model is not None:
-                        noise *= ((noise.sign() * diff.sign()) > 0.0)
-                    noise /= noise.norm()
+                        noise *= ((noise.sign() * diff.sign()) >= 0.0).float()
+                    noise_norm = noise.norm()
+                    if noise_norm != 0.0: noise /= noise.norm()
 
                     velo = lr_rate * noise
                     #velo = (lr_rate * (noise + diff * 0.2))
