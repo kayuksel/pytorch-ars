@@ -30,7 +30,7 @@ class RandomSearcher(threading.Thread):
 
         self.model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
 
-        self.backup = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
+        self.noise_model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
 
         self.checkpoint = deepcopy(self.model.state_dict())
 
@@ -70,12 +70,12 @@ class RandomSearcher(threading.Thread):
 
             BestOne = False
 
+            lock.acquire()
+
             curr_scores[self.thread_id] = self.train_loss
         
             #print(curr_scores)
             #print(np.mean(curr_scores))
-
-            lock.acquire()
 
             if self.train_loss < best_loss:
                 best_model = deepcopy(self.model.state_dict())
@@ -91,9 +91,9 @@ class RandomSearcher(threading.Thread):
                 '''
                 tau = best_loss / (best_loss + self.train_loss)
                 
-                if best_model is not None: self.backup.load_state_dict(best_model)
+                if best_model is not None: self.noise_model.load_state_dict(best_model)
 
-                for model_param, target_param in zip(self.model.parameters(), self.backup.parameters()):
+                for model_param, target_param in zip(self.model.parameters(), self.noise_model.parameters()):
                     model_param.data.copy_(tau * model_param.data + (1 - tau) * target_param.data)
                 self.train_loss = 2.0
                 '''
@@ -134,38 +134,45 @@ class RandomSearcher(threading.Thread):
                 targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
 
                 self.checkpoint = deepcopy(self.model.state_dict())
-                if best_model is not None: self.backup.load_state_dict(best_model) 
+                if best_model is not None: self.noise_model.load_state_dict(best_model) 
 
-                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
-                    # calculate difference vector to move away
-                    diff = model_param.data - noise_param.data
-                    #if (diff**2).sum() != 0.0: diff /= diff.norm()
-
+                for model_param, noise_param in zip(self.model.parameters(), self.noise_model.parameters()):
+                    
                     noise = torch.randn(model_param.size()).cuda(self.cid)
 
+                    '''
+                    # calculate difference vector to move away
+                    diff = model_param.data - noise_param.data
+                    diff_norm = diff.norm()
+                    if diff_norm != 0.0: diff /= diff.norm()
                     # randomly move away from the best model
                     if best_model is not None:
+                        # this might be problematic as the ARS can also move to reverse direction
+                        # than it would totally move towards the the best model but nowhere else
+                        # same goes with the vector addition mabe add it after finite differences?
                         noise *= ((noise.sign() * diff.sign()) >= 0.0).float()
+                    '''
+
                     noise_norm = noise.norm()
-                    if noise_norm != 0.0: noise /= noise.norm()
+                    #if noise_norm != 0.0: noise /= noise_norm
 
                     velo = lr_rate * noise
                     #velo = (lr_rate * (noise + diff * 0.2))
 
                     noise_param.data.copy_(velo)
 
-                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                for model_param, noise_param in zip(self.model.parameters(), self.noise_model.parameters()):
                     model_param.add_(noise_param.data)
 
                 add_loss = calculate_loss(self.model, features, targets)
 
 
-                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                for model_param, noise_param in zip(self.model.parameters(), self.noise_model.parameters()):
                     model_param.sub_(noise_param.data * 2.0)
                 
                 sub_loss = calculate_loss(self.model, features, targets)
 
-                for model_param, noise_param in zip(self.model.parameters(), self.backup.parameters()):
+                for model_param, noise_param in zip(self.model.parameters(), self.noise_model.parameters()):
                     model_param.add_(noise_param.data * (1.0 + sub_loss - add_loss))
 
                 loss = calculate_loss(self.model, features, targets)
