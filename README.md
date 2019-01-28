@@ -6,7 +6,7 @@ Such randomized approaches are often able to avoid local minima(s) and better ap
 
 random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods).
 
-threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 32 models in-parallel with 4 x RTX 2070. However, there are speed issues.
+threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel with 4 x RTX 2070. However, there are speed issues.
 
 My objective is integrating a genetic algorithm on top of the parallelized model training. An early version of this where worse 50% of the population is killed in each epoch is already implemented.
 
