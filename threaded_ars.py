@@ -28,9 +28,9 @@ class RandomSearcher(threading.Thread):
 
         self.cid = thread_id % no_cpus
 
-        self.model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
+        self.model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid).half()
 
-        self.noise_model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid)
+        self.noise_model = Arch3(in_channels = No_Channels, out_channels = No_Channels+3, gap_size = Input_Size).cuda(self.cid).half()
 
         self.checkpoint = deepcopy(self.model.state_dict())
 
@@ -130,15 +130,15 @@ class RandomSearcher(threading.Thread):
 
                 #if (selected_batches[i] == 0): continue
 
-                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
-                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
+                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True).half()
+                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True).half()
 
                 self.checkpoint = deepcopy(self.model.state_dict())
                 if best_model is not None: self.noise_model.load_state_dict(best_model) 
 
                 for model_param, noise_param in zip(self.model.parameters(), self.noise_model.parameters()):
                     
-                    noise = torch.randn(model_param.size()).cuda(self.cid)
+                    noise = torch.randn(model_param.size()).cuda(self.cid).half()
 
                     '''
                     # calculate difference vector to move away
@@ -207,8 +207,8 @@ class RandomSearcher(threading.Thread):
 
             for i, (batch_features, batch_targets) in enumerate(self.train_pb):
 
-                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
-                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
+                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True).half()
+                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True).half()
                 loss = calculate_loss(self.model, features, targets)
 
                 self.prev[i] = loss
@@ -230,8 +230,8 @@ class RandomSearcher(threading.Thread):
 
             for i, (batch_features, batch_targets) in enumerate(self.train_pb):
 
-                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True)
-                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True)
+                features = batch_features.float().view(len(batch_features), -1, Input_Size).cuda(self.cid, non_blocking=True).half()
+                targets = batch_targets.float().view(len(batch_targets), -1).cuda(self.cid, non_blocking=True).half()
 
                 loss = calculate_loss(self.model, features, targets)
                 tsum_loss = tsum_loss + loss.item()
@@ -243,7 +243,7 @@ class RandomSearcher(threading.Thread):
             self.valid_loss = tsum_loss / (i+1)
             #print(self.valid_loss)
 
-for i in range(32):
+for i in range(64):
     RandomSearcher(train_loader, test_loader, thread_id = i).start()
 
 while(True):
