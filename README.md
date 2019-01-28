@@ -18,7 +18,7 @@ Similar to Tabu-search, many models are trained in parallel by testing random mu
 
 - Simulated Annealing (https://en.wikipedia.org/wiki/Simulated_annealing)
 
-Similar to Simulated Annealing, solutions improving the loss of a mini-batch are accepted by default in the local search and the worsening solutions are accepted with an adaptive probability based on the difference in the current and the worsening losses of the mini-batch (which can also have a difficulty that is increasing over epochs). 
+Similar to Simulated Annealing, solutions improving the loss of a mini-batch are accepted by default in the local search and the worsening solutions are accepted with an adaptive probability based on the difference in the current and worsening losses of the mini-batch (which can also have a difficulty that is increasing over epochs). 
 
 - Particle Swarm Optimization (https://en.wikipedia.org/wiki/Particle_swarm_optimization)
 
@@ -27,7 +27,7 @@ Also, the initial experiments are being done in a supervised-learning setting ra
 
 - Prioritized Experience Replay (https://arxiv.org/abs/1511.05952)
 
-Experimental Ideas: Apply Deep Compression techniques from Han. et. al. to reduce the parameter space for random search during the training. What about using ARS for post-training a model that has been trained regularly?
+Experimental Ideas: Apply Deep Compression techniques from Han. et. al. to reduce the parameter space for random search during the training. What about using ARS for post-training a model that is pre-trained with gradient descent?
 
 Please, check the following repository if you are looking for an implementation of the original ARS method in PyTorch:
 https://github.com/alexis-jacq/Pytorch_Policy_Search_Optimizer
