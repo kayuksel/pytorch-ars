@@ -27,5 +27,7 @@ Also, the initial experiments are being done in a supervised-learning setting ra
 
 - Prioritized Experience Replay (https://arxiv.org/abs/1511.05952)
 
+Experimental Ideas: Apply Deep Compression techniques to reduce the parameter space for random search during training. What about using ARS for post-training a model that has been trained regularly?
+
 Please, check the following repository if you are looking for an implementation of the original ARS method in PyTorch:
 https://github.com/alexis-jacq/Pytorch_Policy_Search_Optimizer
