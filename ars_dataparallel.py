@@ -124,35 +124,35 @@ def train(model):
 
             if x1 < x2 and x1 < x3 and x1 < x4 and x1 < x5 and x1 < x6 and x1 < x7 and x1 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net1.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x1))
+                    model_param.add_(noise_param.data * (1.0 + sb1 - ad1))
 
             if x2 < x1 and x2 < x3 and x2 < x4 and x2 < x5 and x2 < x6 and x2 < x7 and x2 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net2.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x2))
+                    model_param.add_(noise_param.data * (1.0 + sb2 - ad2))
 
             if x3 < x1 and x3 < x2 and x3 < x4 and x3 < x5 and x3 < x6 and x3 < x7 and x3 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net3.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x3))
+                    model_param.add_(noise_param.data * (1.0 + sb3 - ad3))
 
             if x4 < x1 and x4 < x2 and x4 < x3 and x4 < x5 and x4 < x6 and x4 < x7 and x4 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net4.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x4))
+                    model_param.add_(noise_param.data * (1.0 + sb4 - ad4))
 
             if x5 < x1 and x5 < x2 and x5 < x3 and x5 < x4 and x5 < x6 and x5 < x7 and x5 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net5.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x5))
+                    model_param.add_(noise_param.data * (1.0 + sb5 - ad5))
 
             if x6 < x1 and x6 < x2 and x6 < x3 and x6 < x4 and x6 < x5 and x6 < x7 and x6 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net6.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x6))
+                    model_param.add_(noise_param.data * (1.0 + sb6 - ad6))
 
             if x7 < x1 and x7 < x2 and x7 < x3 and x7 < x4 and x7 < x5 and x7 < x6 and x7 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net7.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x7))
+                    model_param.add_(noise_param.data * (1.0 + sb7 - ad7))
 
             if x8 < x1 and x8 < x2 and x8 < x3 and x8 < x4 and x8 < x5 and x8 < x6 and x8 < x7:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net8.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + x8))
+                    model_param.add_(noise_param.data * (1.0 + sb8 - ad8))
 
 
             loss = calculate_loss(model, features, targets)[0]
