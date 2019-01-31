@@ -6,7 +6,11 @@ Such randomized approaches are often able to avoid local minima(s) and better ap
 
 random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods).
 
-threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel with 4 x RTX 2070. However, there are speed issues.
+ars_multiprocess.py is a version that utilizes multiprocesses to make asynchronous updates on a shared model using the random search technique. This is inspired a bit from A3C and A3C methods.
+
+threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel with 4 x RTX 2070. However, there are speed issues. The aim of this version was to experiment with evolutionary strategies (described below) on top of augmented random search.
+
+ars_dataparallel.py is the closest implementation that I have done to the original augmented random search method as multiple (eight) directions are sampled for a single model. As opposed to others, my implementation distributes a single model that contains multiple directions in its different branches to perform the direction sampling in parallel rather than sequential. The best branch is cloned to other branches after each update.
 
 My objective is integrating a genetic algorithm on top of the parallelized model training. An early version of this where worse 50% of the population is killed in each epoch is already implemented.
 
@@ -30,8 +34,6 @@ Also, the initial experiments are being done in a supervised-learning setting ra
 Experimental Ideas: 
 
 - Apply Deep Compression techniques from Han. et. al. to reduce the parameter space for random search during the training. What about using ARS for post-training a model that is pre-trained with gradient descent?
-
-- Utilizing the finite differences technique while cloning / breeding from the so far best model
 
 Please, check the following repository if you are looking for an implementation of the original ARS method in PyTorch:
 https://github.com/alexis-jacq/Pytorch_Policy_Search_Optimizer
