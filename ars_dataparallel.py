@@ -16,9 +16,6 @@ batch_size = 2048
 epochs = 100
 lr_rate = 1e-4
 
-import torch.multiprocessing as _mp
-mp = _mp.get_context('spawn')
-
 class Network(nn.Module):
     def __init__(self):
         super(Network, self).__init__()
