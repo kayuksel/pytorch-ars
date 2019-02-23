@@ -14,7 +14,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
 batch_size = 2048
 epochs = 100
-lr_rate = 1e-4
+lr_rate = 1e-6
 
 class Network(nn.Module):
     def __init__(self):
@@ -73,6 +73,8 @@ def calculate_loss(model, features, t):
 
 import pdb
 
+checkpoint = None
+
 def train(model):
     global prev
     global train_loader
@@ -99,6 +101,8 @@ def train(model):
 
                 noise_param.data.copy_(velo)
 
+            #checkpoint = deepcopy(model)
+
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.add_(noise_param.data)
 
@@ -110,6 +114,8 @@ def train(model):
 
             sb1, sb2, sb3, sb4, sb5, sb6, sb7, sb8 = calculate_loss(model, features, targets)
 
+            std = torch.std(torch.Tensor([ad1, ad2, ad3, ad4, ad5, ad6, ad7, ad8, sb1, sb2, sb3, sb4, sb5, sb6, sb7, sb8]))
+
             x1 = torch.min(ad1, sb1)
             x2 = torch.min(ad2, sb2)
             x3 = torch.min(ad3, sb3)
@@ -119,43 +125,46 @@ def train(model):
             x7 = torch.min(ad7, sb7)
             x8 = torch.min(ad8, sb8)
 
+            #model.load_state_dict(checkpoint.state_dict())
+
+            for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
+                model_param.add_(noise_param.data)
+
             if x1 < x2 and x1 < x3 and x1 < x4 and x1 < x5 and x1 < x6 and x1 < x7 and x1 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net1.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb1 - ad1))
+                    model_param.add_(noise_param.data * (sb1 - ad1) / std)
 
             if x2 < x1 and x2 < x3 and x2 < x4 and x2 < x5 and x2 < x6 and x2 < x7 and x2 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net2.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb2 - ad2))
+                    model_param.add_(noise_param.data * (sb2 - ad2) / std)
 
             if x3 < x1 and x3 < x2 and x3 < x4 and x3 < x5 and x3 < x6 and x3 < x7 and x3 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net3.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb3 - ad3))
+                    model_param.add_(noise_param.data * (sb3 - ad3) / std)
 
             if x4 < x1 and x4 < x2 and x4 < x3 and x4 < x5 and x4 < x6 and x4 < x7 and x4 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net4.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb4 - ad4))
+                    model_param.add_(noise_param.data * (sb4 - ad4) / std)
 
             if x5 < x1 and x5 < x2 and x5 < x3 and x5 < x4 and x5 < x6 and x5 < x7 and x5 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net5.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb5 - ad5))
+                    model_param.add_(noise_param.data * (sb5 - ad5) / std)
 
             if x6 < x1 and x6 < x2 and x6 < x3 and x6 < x4 and x6 < x5 and x6 < x7 and x6 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net6.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb6 - ad6))
+                    model_param.add_(noise_param.data * (sb6 - ad6) / std)
 
             if x7 < x1 and x7 < x2 and x7 < x3 and x7 < x4 and x7 < x5 and x7 < x6 and x7 < x8:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net7.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb7 - ad7))
+                    model_param.add_(noise_param.data * (sb7 - ad7) / std)
 
             if x8 < x1 and x8 < x2 and x8 < x3 and x8 < x4 and x8 < x5 and x8 < x6 and x8 < x7:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.net8.parameters()):
-                    model_param.add_(noise_param.data * (1.0 + sb8 - ad8))
+                    model_param.add_(noise_param.data * (sb8 - ad8) / std)
 
 
             loss = calculate_loss(model, features, targets)[0]
 
- 
-            #checkpoint = deepcopy(model)
             prev[i] = loss
             print(np.mean(prev))
 
