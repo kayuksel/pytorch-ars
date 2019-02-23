@@ -6,7 +6,7 @@ Such randomized approaches are often able to avoid local minima(s) and better ap
 
 random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods).
 
-ars_multiprocess.py is a version that utilizes multiprocesses to make asynchronous updates on a shared model using the random search technique. This is inspired a bit from A3C and A3C methods.
+ars_multiprocess.py is a version that utilizes multiprocesses to make asynchronous updates on a shared model using the random search technique. This is inspired a bit from A2C and A3C methods.
 
 threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel with 4 x RTX 2070. However, there are speed issues. The aim of this version was to experiment with evolutionary strategies (described below) on top of augmented random search.
 
