@@ -117,7 +117,7 @@ def train(model):
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.add_(noise_param.data)
 
-            top = torch.topk(min_losses, 4)[1]
+            top = torch.topk(min_losses, 4, largest=False)[1]
 
             for k in top:
                 for model_param, noise_param in zip(model.parameters(), noise_model.module.networks[k].parameters()):
