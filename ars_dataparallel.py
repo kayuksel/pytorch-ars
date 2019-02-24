@@ -13,7 +13,8 @@ import os, pdb
 os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
 lr_rate = 1e-1
-no_dir = 64
+no_dir = 32
+top_dir = 2
 
 
 POLY_DEGREE = 4
@@ -90,7 +91,7 @@ def train(model):
                 for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
                     model_param.add_(noise_param.data)
 
-            top = torch.topk(min_losses, 1, largest=False)[1]
+            top = torch.topk(min_losses, top_dir, largest=False)[1]
 
             for i in range(no_dir):
                 for k in top:
