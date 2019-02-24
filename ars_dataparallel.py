@@ -14,7 +14,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
 batch_size = 2048
 epochs = 100
-lr_rate = 1e-4
+lr_rate = 1e-2
 
 class Network(nn.Module):
     def __init__(self):
@@ -106,7 +106,7 @@ def train(model):
 
             sub_losses = calculate_loss(model, features, targets)
 
-            std = torch.std(torch.cat([add_losses, sub_losses], dim=0))
+            std = 1#torch.std(torch.cat([add_losses, sub_losses], dim=0))
 
             min_losses = torch.min(add_losses, sub_losses)
 
@@ -114,8 +114,9 @@ def train(model):
 
             #model.load_state_dict(checkpoint.state_dict())
 
-            for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                model_param.add_(noise_param.data)
+            for i in range(16):
+                for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
+                    model_param.add_(noise_param.data)
 
             top = torch.topk(min_losses, 4, largest=False)[1]
 
