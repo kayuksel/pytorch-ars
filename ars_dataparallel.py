@@ -87,11 +87,13 @@ def train(model):
             targets = batch_targets.cuda(non_blocking=True)
 
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                noise = torch.randn(model_param.size()).cuda()
+                noise = torch.randn(model_param.size())
+                noise *= (torch.rand(model_param.size())>0.8).float()
 
                 #noise_norm = noise.norm()
                 #if noise_norm != 0.0: noise /= noise_norm
-                velo = lr_rate * noise
+
+                velo = lr_rate * noise.cuda()
                 noise_param.data.copy_(velo)
 
             #checkpoint = deepcopy(model)
