@@ -9,7 +9,7 @@ from torchvision import datasets, transforms
 
 from copy import deepcopy
 
-import os
+import os, pdb
 os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
 batch_size = 2048
@@ -35,19 +35,15 @@ class Network(nn.Module):
         return F.log_softmax(x, dim=1)
 
 class BigNetwork(nn.Module):
-    def __init__(self):
+    def __init__(self, k = 8):
         super(BigNetwork, self).__init__()
-        self.net1 = Network()
-        self.net2 = Network()
-        self.net3 = Network()
-        self.net4 = Network()
-        self.net5 = Network()
-        self.net6 = Network()
-        self.net7 = Network()
-        self.net8 = Network()
+
+        self.networks = []
+        for i in range(k):
+            self.networks.append(nn.DataParallel(Network()).cuda())
 
     def forward(self, x):
-        return self.net1(x), self.net2(x), self.net3(x), self.net4(x), self.net5(x), self.net6(x), self.net7(x), self.net8(x)
+        return [self.networks[i](x) for i in range(len(self.networks))]
 
 kwargs = {'num_workers': 1, 'pin_memory': True}
 
@@ -68,10 +64,8 @@ test_loader = torch.utils.data.DataLoader(
 prev = np.ones(len(train_loader)) * 10.0
 
 def calculate_loss(model, features, t):
-    a1, a2, a3, a4, a5, a6, a7, a8 = model(features)
-    return F.nll_loss(a1, t), F.nll_loss(a2, t), F.nll_loss(a3, t), F.nll_loss(a4, t), F.nll_loss(a5, t), F.nll_loss(a6, t), F.nll_loss(a7, t), F.nll_loss(a8, t)
-
-import pdb
+    outputs = model(features)
+    return torch.Tensor([F.nll_loss(output, t) for output in outputs])
 
 checkpoint = None
 
@@ -79,7 +73,7 @@ def train(model):
     global prev
     global train_loader
 
-    noise_model = nn.DataParallel(BigNetwork()).cuda().half()
+    noise_model = nn.DataParallel(BigNetwork()).cuda()
 
     with torch.no_grad():
 
@@ -89,16 +83,15 @@ def train(model):
 
         for i, (batch_features, batch_targets) in enumerate(train_loader):
 
-            features = batch_features.cuda(non_blocking=True).half()
+            features = batch_features.cuda(non_blocking=True)
             targets = batch_targets.cuda(non_blocking=True)
 
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                noise = torch.randn(model_param.size()).cuda().half()
+                noise = torch.randn(model_param.size()).cuda()
 
                 #noise_norm = noise.norm()
                 #if noise_norm != 0.0: noise /= noise_norm
                 velo = lr_rate * noise
-
                 noise_param.data.copy_(velo)
 
             #checkpoint = deepcopy(model)
@@ -106,62 +99,28 @@ def train(model):
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.add_(noise_param.data)
 
-            ad1, ad2, ad3, ad4, ad5, ad6, ad7, ad8 = calculate_loss(model, features, targets)
-
+            add_losses = calculate_loss(model, features, targets)
 
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.sub_(noise_param.data * 2.0)
 
-            sb1, sb2, sb3, sb4, sb5, sb6, sb7, sb8 = calculate_loss(model, features, targets)
+            sub_losses = calculate_loss(model, features, targets)
 
-            std = torch.std(torch.Tensor([ad1, ad2, ad3, ad4, ad5, ad6, ad7, ad8, sb1, sb2, sb3, sb4, sb5, sb6, sb7, sb8]))
+            std = torch.std(torch.cat([add_losses, sub_losses], dim=0))
 
-            x1 = torch.min(ad1, sb1)
-            x2 = torch.min(ad2, sb2)
-            x3 = torch.min(ad3, sb3)
-            x4 = torch.min(ad4, sb4)
-            x5 = torch.min(ad5, sb5)
-            x6 = torch.min(ad6, sb6)
-            x7 = torch.min(ad7, sb7)
-            x8 = torch.min(ad8, sb8)
+            min_losses = torch.min(add_losses, sub_losses)
+
+            dif_losses = sub_losses - add_losses
 
             #model.load_state_dict(checkpoint.state_dict())
 
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.add_(noise_param.data)
 
-            if x1 < x2 and x1 < x3 and x1 < x4 and x1 < x5 and x1 < x6 and x1 < x7 and x1 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net1.parameters()):
-                    model_param.add_(noise_param.data * (sb1 - ad1) / std)
+            smallest = min_losses.argmin()
 
-            if x2 < x1 and x2 < x3 and x2 < x4 and x2 < x5 and x2 < x6 and x2 < x7 and x2 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net2.parameters()):
-                    model_param.add_(noise_param.data * (sb2 - ad2) / std)
-
-            if x3 < x1 and x3 < x2 and x3 < x4 and x3 < x5 and x3 < x6 and x3 < x7 and x3 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net3.parameters()):
-                    model_param.add_(noise_param.data * (sb3 - ad3) / std)
-
-            if x4 < x1 and x4 < x2 and x4 < x3 and x4 < x5 and x4 < x6 and x4 < x7 and x4 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net4.parameters()):
-                    model_param.add_(noise_param.data * (sb4 - ad4) / std)
-
-            if x5 < x1 and x5 < x2 and x5 < x3 and x5 < x4 and x5 < x6 and x5 < x7 and x5 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net5.parameters()):
-                    model_param.add_(noise_param.data * (sb5 - ad5) / std)
-
-            if x6 < x1 and x6 < x2 and x6 < x3 and x6 < x4 and x6 < x5 and x6 < x7 and x6 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net6.parameters()):
-                    model_param.add_(noise_param.data * (sb6 - ad6) / std)
-
-            if x7 < x1 and x7 < x2 and x7 < x3 and x7 < x4 and x7 < x5 and x7 < x6 and x7 < x8:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net7.parameters()):
-                    model_param.add_(noise_param.data * (sb7 - ad7) / std)
-
-            if x8 < x1 and x8 < x2 and x8 < x3 and x8 < x4 and x8 < x5 and x8 < x6 and x8 < x7:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.net8.parameters()):
-                    model_param.add_(noise_param.data * (sb8 - ad8) / std)
-
+            for model_param, noise_param in zip(model.parameters(), noise_model.module.networks[smallest].parameters()):
+                model_param.add_(noise_param.data * diff_losses[smallest] / std)
 
             loss = calculate_loss(model, features, targets)[0]
 
@@ -177,5 +136,5 @@ def train(model):
 
 if __name__ == '__main__':
 
-    model = nn.DataParallel(BigNetwork()).cuda().half()
+    model = nn.DataParallel(BigNetwork()).cuda()
     train(model)
