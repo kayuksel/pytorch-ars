@@ -1,3 +1,5 @@
+from itertools import count
+
 import random
 import numpy as np
 
@@ -5,73 +7,44 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
-from torchvision import datasets, transforms
-
 from copy import deepcopy
 
 import os, pdb
 os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
-batch_size = 2048
-epochs = 100
-lr_rate = 1e-2
+lr_rate = 1e-1
+no_dir = 64
 
-class Network(nn.Module):
-    def __init__(self):
-        super(Network, self).__init__()
-        self.conv1 = nn.Conv2d(1, 20, 5, 1)
-        self.conv2 = nn.Conv2d(20, 50, 5, 1)
-        self.fc1 = nn.Linear(4*4*50, 500)
-        self.fc2 = nn.Linear(500, 10)
 
-    def forward(self, x):
-        x = F.relu(self.conv1(x))
-        x = F.max_pool2d(x, 2, 2)
-        x = F.relu(self.conv2(x))
-        x = F.max_pool2d(x, 2, 2)
-        x = x.view(-1, 4*4*50)
-        x = F.relu(self.fc1(x))
-        x = self.fc2(x)
-        return F.log_softmax(x, dim=1)
+POLY_DEGREE = 4
+W_target = torch.randn(POLY_DEGREE, 1) * 5
+b_target = torch.randn(1) * 5
+
+def get_batch(batch_size=2048):
+    random = torch.randn(batch_size).unsqueeze(1)
+    x = torch.cat([random ** i for i in range(1, POLY_DEGREE+1)], 1)
+    y = x.mm(W_target) + b_target.item()
+    return x.cuda(), y.cuda()
 
 class BigNetwork(nn.Module):
-    def __init__(self, k = 16):
+    def __init__(self, k = no_dir):
         super(BigNetwork, self).__init__()
 
         self.networks = []
         for i in range(k):
-            self.networks.append(nn.DataParallel(Network()).cuda())
+            self.networks.append(nn.DataParallel(nn.Linear(W_target.size(0), 1)).cuda())
 
     def forward(self, x):
         return [self.networks[i](x) for i in range(len(self.networks))]
 
-kwargs = {'num_workers': 1, 'pin_memory': True}
-
-train_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=True, download=True,
-                   transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])),
-    batch_size=batch_size, shuffle=True, **kwargs)
-test_loader = torch.utils.data.DataLoader(
-    datasets.MNIST('../data', train=False, transform=transforms.Compose([
-                       transforms.ToTensor(),
-                       transforms.Normalize((0.1307,), (0.3081,))
-                   ])),
-    batch_size=batch_size, shuffle=True, **kwargs)
-
-prev = np.ones(len(train_loader)) * 10.0
 
 def calculate_loss(model, features, t):
     outputs = model(features)
-    return torch.Tensor([F.nll_loss(output, t) for output in outputs])
+    return torch.Tensor([F.smooth_l1_loss(output, t) for output in outputs])
 
 checkpoint = None
 
 def train(model):
-    global prev
-    global train_loader
 
     noise_model = nn.DataParallel(BigNetwork()).cuda()
 
@@ -81,12 +54,11 @@ def train(model):
 
         model.eval()
 
-        for i, (batch_features, batch_targets) in enumerate(train_loader):
+        for batch_idx in count(1):
 
-            features = batch_features.cuda(non_blocking=True)
-            targets = batch_targets.cuda(non_blocking=True)
+            features, targets = get_batch()
 
-            for i in range(16):
+            for i in range(no_dir):
                 for noise_param in noise_model.module.networks[i].parameters():
                     noise = torch.randn(noise_param.size())
                     velo = lr_rate * noise.cuda()
@@ -94,19 +66,19 @@ def train(model):
 
             #checkpoint = deepcopy(model)
 
-            for i in range(16):
+            for i in range(no_dir):
                 for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
                     model_param.add_(noise_param.data)
 
             add_losses = calculate_loss(model, features, targets)
 
-            for i in range(16):
+            for i in range(no_dir):
                 for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
                     model_param.sub_(noise_param.data * 2.0)
 
             sub_losses = calculate_loss(model, features, targets)
 
-            std = 1#torch.std(torch.cat([add_losses, sub_losses], dim=0))
+            std = torch.std(torch.cat([add_losses, sub_losses], dim=0))
 
             min_losses = torch.min(add_losses, sub_losses)
 
@@ -114,21 +86,20 @@ def train(model):
 
             #model.load_state_dict(checkpoint.state_dict())
 
-            for i in range(16):
+            for i in range(no_dir):
                 for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
                     model_param.add_(noise_param.data)
 
-            top = torch.topk(min_losses, 4, largest=False)[1]
+            top = torch.topk(min_losses, 1, largest=False)[1]
 
-            for i in range(16):
+            for i in range(no_dir):
                 for k in top:
                     for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[k].parameters()):
                         model_param.add_(noise_param.data * dif_losses[k] / std)
 
             loss = calculate_loss(model, features, targets)[0]
 
-            prev[i] = loss
-            print(np.mean(prev))
+            print(loss)
 
             tsum_loss = tsum_loss + loss.item()
 
