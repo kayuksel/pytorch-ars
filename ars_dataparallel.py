@@ -14,7 +14,7 @@ os.environ["CUDA_VISIBLE_DEVICES"]="0, 1, 2, 3"
 
 batch_size = 2048
 epochs = 100
-lr_rate = 1e-6
+lr_rate = 1e-4
 
 class Network(nn.Module):
     def __init__(self):
@@ -86,25 +86,23 @@ def train(model):
             features = batch_features.cuda(non_blocking=True)
             targets = batch_targets.cuda(non_blocking=True)
 
-            for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                noise = torch.randn(model_param.size())
-                noise *= (torch.rand(model_param.size())>0.8).float()
-
-                #noise_norm = noise.norm()
-                #if noise_norm != 0.0: noise /= noise_norm
-
-                velo = lr_rate * noise.cuda()
-                noise_param.data.copy_(velo)
+            for i in range(16):
+                for noise_param in noise_model.module.networks[i].parameters():
+                    noise = torch.randn(noise_param.size())
+                    velo = lr_rate * noise.cuda()
+                    noise_param.data.copy_(velo)
 
             #checkpoint = deepcopy(model)
 
-            for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                model_param.add_(noise_param.data)
+            for i in range(16):
+                for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
+                    model_param.add_(noise_param.data)
 
             add_losses = calculate_loss(model, features, targets)
 
-            for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
-                model_param.sub_(noise_param.data * 2.0)
+            for i in range(16):
+                for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[i].parameters()):
+                    model_param.sub_(noise_param.data * 2.0)
 
             sub_losses = calculate_loss(model, features, targets)
 
@@ -121,9 +119,10 @@ def train(model):
 
             top = torch.topk(min_losses, 4, largest=False)[1]
 
-            for k in top:
-                for model_param, noise_param in zip(model.parameters(), noise_model.module.networks[k].parameters()):
-                    model_param.add_(noise_param.data * diff_losses[k] / std)
+            for i in range(16):
+                for k in top:
+                    for model_param, noise_param in zip(model.module.networks[i].parameters(), noise_model.module.networks[k].parameters()):
+                        model_param.add_(noise_param.data * dif_losses[k] / std)
 
             loss = calculate_loss(model, features, targets)[0]
 
