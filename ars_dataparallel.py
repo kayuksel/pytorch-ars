@@ -35,7 +35,7 @@ class Network(nn.Module):
         return F.log_softmax(x, dim=1)
 
 class BigNetwork(nn.Module):
-    def __init__(self, k = 8):
+    def __init__(self, k = 16):
         super(BigNetwork, self).__init__()
 
         self.networks = []
@@ -117,10 +117,11 @@ def train(model):
             for model_param, noise_param in zip(model.parameters(), noise_model.parameters()):
                 model_param.add_(noise_param.data)
 
-            smallest = min_losses.argmin()
+            top = torch.topk(min_losses, 4)[1]
 
-            for model_param, noise_param in zip(model.parameters(), noise_model.module.networks[smallest].parameters()):
-                model_param.add_(noise_param.data * diff_losses[smallest] / std)
+            for k in top:
+                for model_param, noise_param in zip(model.parameters(), noise_model.module.networks[k].parameters()):
+                    model_param.add_(noise_param.data * diff_losses[k] / std)
 
             loss = calculate_loss(model, features, targets)[0]
 
