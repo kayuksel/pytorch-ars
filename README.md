@@ -1,5 +1,7 @@
 # Augmented Random Search Experiments in PyTorch
 
+*** Please, check ars_dataparallel.py for a working implementation of Augmented Random Search on a toy linear regression problem. The rest of the codes within the repository are currently experimental ***
+
 This repository contains a work which is inspired by the paper "Simple random search provides a competitive approach to reinforcement learning" (https://arxiv.org/abs/1803.07055) where they developed a competitive alternative to the gradient-based methods for training deep neural policies in reinforcement-learning (RL).
 
 Such randomized approaches are often able to avoid local minima(s) and better approximate the global minima especially when the resources are not limited (whilst authors have been even able to find optimial policies significantly faster than the state-of-the-art methods in RL using Augmented Random Search).
