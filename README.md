@@ -8,7 +8,7 @@ random_search.py contains a simplified version the algorithm that is presented i
 
 ars_multiprocess.py is a version that utilizes multiprocesses to make asynchronous updates on a shared model using the random search technique. This is inspired a bit from A2C and A3C methods.
 
-threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel with 4 x RTX 2070. However, there are speed issues. The aim of this version was to experiment with evolutionary strategies (described below) on top of augmented random search.
+threaded_ars.py contains a multi-threaded implementation where the models are trained. I have been able to easily train 64 models in-parallel. However, there are speed issues. The aim of this version was to experiment with evolutionary strategies (described below) on top of augmented random search.
 
 ars_dataparallel.py is the closest implementation that I have done to the original augmented random search method as multiple (eight) directions are sampled for a single model. As opposed to others, my implementation distributes a single model that contains multiple directions in its different branches to perform the direction sampling in parallel rather than sequential. The best branch is cloned to other branches after each update.
 
