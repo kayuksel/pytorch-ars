@@ -4,7 +4,7 @@ This repository contains a work which is inspired by the paper "Simple random se
 
 Such randomized approaches are often able to avoid local minima(s) and better approximate the global minima especially when the resources are not limited (whilst authors have been even able to find optimial policies significantly faster than the state-of-the-art methods in RL using Augmented Random Search).
 
-random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one (as I have been training a huge network that hardly fits into 8GB memory of RTX 2070 when it is trained with the regular methods).
+random_search.py contains a simplified version the algorithm that is presented in the paper. The reason of simplification was to reduce the memory usage that is required by the original one.
 
 ars_multiprocess.py is a version that utilizes multiprocesses to make asynchronous updates on a shared model using the random search technique. This is inspired a bit from A2C and A3C methods.
 
