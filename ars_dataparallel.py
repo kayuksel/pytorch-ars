@@ -16,7 +16,6 @@ lr_rate = 1e-1
 no_dir = 32
 top_dir = 2
 
-
 POLY_DEGREE = 4
 W_target = torch.randn(POLY_DEGREE, 1) * 5
 b_target = torch.randn(1) * 5
@@ -37,7 +36,6 @@ class BigNetwork(nn.Module):
 
     def forward(self, x):
         return [self.networks[i](x) for i in range(len(self.networks))]
-
 
 def calculate_loss(model, features, t):
     outputs = model(features)
@@ -106,8 +104,6 @@ def train(model):
 
         torch.cuda.empty_cache()
         train(model)
-
-
 
 if __name__ == '__main__':
 
